@@ -12,8 +12,9 @@ class WechatPay
 	appId = 'appid'
 	payKey = '支付key'
 	mchId = '商户号'
+	payNotifyURL = '支付成功通知地址'
 
-	unifiedorder = (userIp,body,totalFee,notifyUrl,outTradeNo,callback)->
+	unifiedorder = (userIp,body,totalFee,outTradeNo,callback)->
 		nonce = Math.floor(Math.random()*10000000) + ''
 		pay =
 			appid : appId
@@ -22,7 +23,7 @@ class WechatPay
 			body : body
 			out_trade_no : outTradeNo
 			total_fee : totalFee
-			notify_url : notifyUrl
+			notify_url : payNotifyURL
 			spbill_craete_ip : userIp
 			trade_type : 'JSAPI'
 		signString = WXCrypter.sortQuerys pay
@@ -86,6 +87,14 @@ class WechatPay
 					return callback result.trade_state_desc[0]
 				callback null,result
 
+	validatePay = (payXML,callback)->
+		xml2js.parseString payXML,(err,result)->
+			return callback err if err
+			pay = result
+			# advanced : 需比对签名确保正确
+			return callback null,pay.out_trade_no[0] if pay.out_trade_no[0]
+			callback 'failed'
+
 	cert = fs.readFileSync('./cert/apiclient_cert.p12') #读取证书，红包请求需要证书
 	sendRedPack = (internalId,nickname,sendname,openid,total,wishing,remark,callback)->
 		ip = null
@@ -142,6 +151,47 @@ class WechatPay
 					return callback result.err_code_des[0]
 				callback null,result
 		
+	# options { clientIp :  , orderId: , total :  , body : }
+	# clientIp : 用户IP
+	# orderId : 内部订单号
+	# total : 总金额
+	# body : 备注 (optional)
+	generaterPay : (options,callback)->
+		clientIp = options.clientIp
+		orderId = options.orderId
+		totalFee = options.total
+		body = options.body || '微信支付'
+		unifiedorder clientIp,body,totoalFee,orderId,(err,result)->
+			return callback err if err
+			wxpay = generatorPayPackage result
+			callback null,wxpay
+
+	# 根据内部订单号查询订单状态 
+	queryOrder : (orderid,callback)->
+		checkOrder orderid,callback
+
+	# 微信支付返回
+	wxCallback : (xml,callback)->
+		validatePay xml,callback
+
+	# options { openId :  , orderId: , total :  , sendName :  ,nickName : , wishing : , remark : }
+	# openid : 用户openid
+	# orderId : 内部订单号
+	# total : 总金额
+	# sendName : 发送者姓名 (optional)
+	# nickName : 发送者昵称 (optional)
+	# wishing : 祝福语(optional)
+	# remark : 红包备注 (optional)
+	redpack : (options,callback)->
+		openId = options.openId
+		orderId = options.orderId
+		total = options.total
+		sendName = options.sendName || ''
+		nickName = options.nickName || sendName
+		wishing = options.wishing || ''
+		remark = options.remark || ''
+		sendRedPack orderId,nickName,sendName,openId,total,wishing,remark,(err,result)->
+			callback err,result
 
 
 module.exports = new WechatPay()
