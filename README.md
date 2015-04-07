@@ -2,6 +2,8 @@
 
 微信相关API以及实现
 
+client.coffee 实现了微信公众号JS API的调用
+
 wechat.coffee 实现了微信公众号的消息接收流程
 
 wechatPay.coffee 实现了微信支付的相关接口：JSAPI发起一个支付，发送微信红包
